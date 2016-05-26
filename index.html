@@ -23,7 +23,7 @@
                 <thead>
                     <tr>
                         <th class="collapsing">Cores</th>
-                        <th ng-repeat="vertice in grafo.vertices" style="background:{{vertice.cor}}">
+                        <th ng-repeat="vertice in grafo.vertices" ng-style="{background:vertice.cor}">
                             {{vertice.cor}}
                         </th>
                         <th class="collapsing"></th>
@@ -40,7 +40,7 @@
                         <td ng-repeat="vizinho in grafo.vertices">
                             {{saoVizinhos(vertice, vizinho, grafo.arestas)}}
                         </td>
-                        <td>{{calcularGrau(vertice, grafo)}}</td>
+                        <td>{{vertice.grau}}</td>
                     </tr>
                 </tbody>
             </table>
@@ -85,6 +85,69 @@
                                 }
                             ]
                         };
+                        
+                        var vizinhos = [];
+
+                        $scope.saoVizinhos = function (verticea, verticeb, arestas) {
+                            return arestas.some(function (aresta) {
+                                return aresta.v1 === verticea.id && aresta.v2 === verticeb.id ||
+                                        aresta.v2 === verticea.id && aresta.v1 === verticeb.id;
+                            }) ? "1" : "";
+                        };
+
+                        getVerticeMaiorGrauSaturacao = function () {
+                            var vMaiorGrau = {grau: 0};
+                            $scope.grafo.vertices.forEach(function (v) {
+                                if (v.grauSaturacao > vMaiorGrau.grauSaturacao) {
+                                    vMaiorGrau = v;
+                                }
+                            });
+                            return vMaiorGrau;
+                        };
+                        
+                        calcularGrauAdjacencia = function (vertice) {
+                            return $scope.grafo.arestas.filter(function (aresta) {
+                                return aresta.v1 === vertice.id || aresta.v2 === vertice.id;
+                            }).length;
+                        };
+                        
+                        getVerticeMaiorGrauAdjacencia = function () {
+                            var vMaiorGrau = {grau: 0};
+                            $scope.grafo.vertices.forEach(function (v) {
+                                if (v.grau > vMaiorGrau.grau) {
+                                    vMaiorGrau = v;
+                                }
+                            });
+                            return vMaiorGrau;
+                        };
+
+                        calcularGrauAdjacencia = function (vertice) {
+                            return $scope.grafo.arestas.filter(function (aresta) {
+                                return aresta.v1 === vertice.id || aresta.v2 === vertice.id;
+                            }).length;
+                        };
+
+                        definirGrausAdjacencia = function () {
+                            $scope.grafo.vertices.forEach(function (vertice) {
+                                vertice.grau = calcularGrauAdjacencia(vertice);
+                            });
+                        };
+
+                        getVizinhos = function (vertice) {
+
+                        }
+
+                        definirVizinhos = function () {
+                            $scope.grafo.vertices.forEach(function (vertice) {
+                                vertice.vizinhos = getVizinhos(vertice);
+                            });
+                        };
+
+                        existeVerticeSemCor = function () {
+                            return $scope.grafo.vertices.some(function (vertice) {
+                                return !vertice.cor;
+                            });
+                        };
 
                         /*
                          1 - Escolher com maior grau e atribuir cor a este vertice
@@ -94,18 +157,21 @@
                          3 - Repetir esta escolha até todos os vértices ficarem coloridos.
                          * */
 
-                        $scope.saoVizinhos = function (verticea, verticeb, arestas) {
-                            return arestas.some(function (aresta) {
-                                return aresta.v1 === verticea.id && aresta.v2 === verticeb.id ||
-                                        aresta.v2 === verticea.id && aresta.v1 === verticeb.id;
-                            }) ? "1" : "";
+                        var cores = ["red", "blue", "yellow"];
+                        colorir = function () {
+                            var v = getVerticeMaiorGrauAdjacencia();
+                            var i = 0;
+                            while (existeVerticeSemCor() && i < 10) {
+                                getVerticeMaiorGrauSaturacao();
+                                i++;
+                            }
+                            v.cor = "blue";
+                            console.log(v);
                         };
 
-                        $scope.calcularGrau = function (vertice, grafo) {
-                            return grafo.arestas.filter(function (aresta) {
-                                return aresta.v1 === vertice.id || aresta.v2 === vertice.id;
-                            }).length;
-                        };
+                        definirVizinhos();
+                        definirGrausAdjacencia();
+                        colorir();
                     });
         </script>
     </body>
