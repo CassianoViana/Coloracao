@@ -1,0 +1,12 @@
+Entradas
+	Grafo
+Processo
+	1 - Escolher com maior grau e atribuir cor a este vertice
+	2 - Escolher para colorir o vértice que, no momento, for adjacente do maior número de
+	cores diferentes (grau de saturação)
+	3 - Repetir esta escolha até todos os vértices ficarem coloridos.
+Saída
+	Lista com os vértices e suas respectivas cores
+
+Elementos
+	Grafo

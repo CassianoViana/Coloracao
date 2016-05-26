@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en" ng-app="app">
+    <head>
+        <meta charset="UTF-8">
+        <title>Document</title>
+        <link rel="stylesheet" type="text/css" href="semantic/semantic.css">
+        <script type="text/javascript" src="angular/angular.min.js"></script>
+        <script type="text/javascript" src="jquery/jquery-2.2.4.min.js"></script>
+        <script type="text/javascript" src="semantic/semantic.js"></script>
+    </head>
+    <body ng-controller="ColoracaoController">
+
+        <div class="ui container">
+            <h1>Coloração</h1>
+            <div class="ui form">
+                <h4>Cole o grafo</h4>
+                <div class="field">
+                    <textarea ng-model="grafo"></textarea>
+                </div>
+            </div>
+            <h4>Verifique a saída</h4>
+            <table class="ui celled table center aligned">
+                <thead>
+                    <tr>
+                        <th class="collapsing">Cores</th>
+                        <th ng-repeat="vertice in grafo.vertices" style="background:{{vertice.cor}}">
+                            {{vertice.cor}}
+                        </th>
+                        <th class="collapsing"></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Vértices</td>
+                        <td ng-repeat="vertice in grafo.vertices">{{vertice.rotulo}}</td>
+                        <td>Grau</td>
+                    </tr>
+                    <tr ng-repeat="vertice in grafo.vertices">
+                        <td>{{vertice.rotulo}}</td>
+                        <td ng-repeat="vizinho in grafo.vertices">
+                            {{saoVizinhos(vertice, vizinho, grafo.arestas)}}
+                        </td>
+                        <td>{{calcularGrau(vertice, grafo)}}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <script type="text/javascript">
+                    var app = angular.module('app', []);
+                    var ColoracaoController = app.controller('ColoracaoController', function ($scope) {
+                        $scope.grafo = {
+                            vertices: [
+                                {
+                                    id: 0,
+                                    rotulo: "A"
+                                },
+                                {
+                                    id: 1,
+                                    rotulo: "D"
+                                },
+                                {
+                                    id: 2,
+                                    rotulo: "F"
+                                },
+                                {
+                                    id: 3,
+                                    rotulo: "B"
+                                }
+                            ],
+                            arestas: [
+                                {
+                                    v1: 0, v2: 2
+                                },
+                                {
+                                    v1: 1, v2: 0
+                                },
+                                {
+                                    v1: 2, v2: 1
+                                },
+                                {
+                                    v1: 2, v2: 3
+                                },
+                                {
+                                    v1: 3, v2: 1
+                                }
+                            ]
+                        };
+
+                        /*
+                         1 - Escolher com maior grau e atribuir cor a este vertice
+                         Enquanto tiver vertice sem cor:
+                         2 - Escolher para colorir o vértice que, no momento, for adjacente do maior número de
+                         cores diferentes (grau de saturação)
+                         3 - Repetir esta escolha até todos os vértices ficarem coloridos.
+                         * */
+
+                        $scope.saoVizinhos = function (verticea, verticeb, arestas) {
+                            return arestas.some(function (aresta) {
+                                return aresta.v1 === verticea.id && aresta.v2 === verticeb.id ||
+                                        aresta.v2 === verticea.id && aresta.v1 === verticeb.id;
+                            }) ? "1" : "";
+                        };
+
+                        $scope.calcularGrau = function (vertice, grafo) {
+                            return grafo.arestas.filter(function (aresta) {
+                                return aresta.v1 === vertice.id || aresta.v2 === vertice.id;
+                            }).length;
+                        };
+                    });
+        </script>
+    </body>
+</html>
