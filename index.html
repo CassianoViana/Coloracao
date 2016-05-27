@@ -7,6 +7,7 @@
         <script type="text/javascript" src="angular/angular.min.js"></script>
         <script type="text/javascript" src="jquery/jquery-2.2.4.min.js"></script>
         <script type="text/javascript" src="semantic/semantic.js"></script>
+        <script type="text/javascript" src="converterXmlJson.js"></script>
     </head>
     <body ng-controller="ColoracaoController">
 
@@ -15,7 +16,7 @@
             <div class="ui form">
                 <h4>Cole o grafo</h4>
                 <div class="field">
-                    <textarea ng-model="grafo"></textarea>
+                    <textarea ng-model="xmlGrafo" ng-change="construirGrafo(xmlGrafo)"></textarea>
                 </div>
             </div>
             <h4>Verifique a saída</h4>
@@ -38,16 +39,184 @@
                     <tr ng-repeat="vertice in grafo.vertices">
                         <td>{{vertice.rotulo}}</td>
                         <td ng-repeat="vizinho in grafo.vertices">
-                            {{saoVizinhos(vertice, vizinho, grafo.arestas)}}
+                            {{saoVizinhos(vertice, vizinho) ? '1' : ''}}
                         </td>
-                        <td>{{vertice.grau}}</td>
+                        <td>{{vertice.arestas.length}}</td>
                     </tr>
                 </tbody>
             </table>
+            <div ng-if="passos.length > 0">
+                <h4>Passos</h4>
+                <div class="ui relaxed divided list">
+                    <div class="item" ng-repeat="passo in passos">
+                        <i class="large github middle aligned icon"></i>
+                        <div class="content">
+                            <a class="header">{{passo.categoria}}</a>
+                            <div class="description">{{passo.descricao}}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
         </div>
         <script type="text/javascript">
                     var app = angular.module('app', []);
                     var ColoracaoController = app.controller('ColoracaoController', function ($scope) {
+                        
+                        // ---------- LOG --------------------------------------
+
+                        $scope.passos = [];
+                        function d(categoria, desc) {
+                            $scope.passos.push({categoria: categoria, descricao: desc});
+                        }
+
+                        // --------------- FUNCOES SCOPE  ----------------------
+
+                        $scope.construirGrafo = function (xmlGrafo) {
+                            var parser = new DOMParser();
+                            var xml = parser.parseFromString(xmlGrafo, "text/xml");
+                            var json = xmlToJson(xml);
+                            var grafo = {
+                                vertices: json.Grafo.Vertices.Vertice,
+                                arestas: json.Grafo.Arestas.Aresta
+                            };
+                            grafo.arestas.forEach(function (aresta) {
+                                aresta.v1 = aresta.attributes.idVertice1;
+                                aresta.v2 = aresta.attributes.idVertice2;
+                            });
+                            grafo.vertices.forEach(function (vertice) {
+                                vertice.id = vertice.attributes.relId;
+                                vertice.rotulo = vertice.attributes.rotulo;
+                            });
+                            $scope.grafo = grafo;
+                            $scope.passos = [];
+                            preparar($scope.grafo);
+                            colorir($scope.grafo);
+                        };
+
+                        $scope.saoVizinhos = function (v1, v2) {
+                            return v1.arestas.some(function (aresta) {
+                                return  aresta.v1 === v1.id && aresta.v2 === v2.id ||
+                                        aresta.v2 === v1.id && aresta.v1 === v2.id;
+                            });
+                        };
+
+                        // --------------- PREPARANDO GRAFO  -------------------
+
+                        function getArestas(vertice, grafo) {
+                            return grafo.arestas.filter(function (aresta) {
+                                return aresta.v1 === vertice.id || aresta.v2 === vertice.id;
+                            });
+                        }
+
+                        function preparar(grafo) {
+                            grafo.vertices.forEach(function (vertice) {
+                                vertice.arestas = getArestas(vertice, grafo);
+                            });
+                            d("Inicio", "Preparando grafo...");
+                        }
+
+                        // --------------- COLORAÇÃO  --------------------------
+
+                        var cores = ["red", "blue", "yellow", "green", "orange", "pink", "gray"];
+                        var nrCoresUsadas = 0;
+
+                        function existeVerticeSemCor(grafo) {
+                            return grafo.vertices.some(function (vertice) {
+                                return !vertice.cor;
+                            });
+                        }
+
+                        function getVerticeMaiorGrauAdjacencia(grafo) {
+                            var verticeMaxAdj = {arestas: []};
+                            grafo.vertices.forEach(function (v) {
+                                if (v.arestas.length > verticeMaxAdj.arestas.length) {
+                                    verticeMaxAdj = v;
+                                }
+                            });
+                            d("Escolhido vértice maior grau de adjacência: ", "Vértice " + verticeMaxAdj.rotulo);
+                            return verticeMaxAdj;
+                        }
+
+                        function getVizinhos(vertice, grafo) {
+                            return grafo.vertices.filter(function (v) {
+                                return $scope.saoVizinhos(vertice, v);
+                            });
+                        }
+
+                        function getCores(vertices) {
+                            var cores = [];
+                            vertices.forEach(function (v) {
+                                var cor = v.cor;
+                                if (cores.indexOf(cor) === -1) {
+                                    cores.push(cor);
+                                }
+                            });
+                            return cores;
+                        }
+
+                        function getPrimeiraCorAdmissivel(vertice, grafo) {
+                            var vizinhos = getVizinhos(vertice, grafo);
+                            var coresVizinhos = getCores(vizinhos);
+                            var cor;
+                            for (var i = 0; i < cores.length; i++) {
+                                cor = cores[i];
+                                if (coresVizinhos.indexOf(cor) === -1) {
+                                    break;
+                                }
+                            }
+                            if (cor === undefined) {
+                                cor = cores[nrCoresUsadas];
+                                nrCoresUsadas++;
+                            }
+                            d("Primeira cor admissível para " + vertice.rotulo, cor);
+                            return cor;
+                        }
+
+                        function getGrauSaturacao(vertice, grafo) {
+                            var vizinhos = getVizinhos(vertice, grafo);
+                            var cores = getCores(vizinhos);
+                            d("Cores dos vizinhos de " + vertice.rotulo, cores);
+                            return cores.filter(function (c) {
+                                return c !== undefined;
+                            }).length;
+                        }
+
+                        function getVerticeMaiorGrauSaturacao(grafo) {
+                            var verticeMaxSaturacao = {};
+                            var maxGrau = 0;
+                            grafo.vertices.filter(function (v) {
+                                return v.cor === undefined;
+                            }).forEach(function (v) {
+                                var grauSaturacao = getGrauSaturacao(v, grafo);
+                                if (grauSaturacao > maxGrau) {
+                                    maxGrau = grauSaturacao;
+                                    verticeMaxSaturacao = v;
+                                }
+                            });
+                            d("Vértice com maior saturação: " + verticeMaxSaturacao.rotulo, "Saturação: " + maxGrau);
+                            return verticeMaxSaturacao;
+                        }
+
+                        /*
+                         1 - Escolher com maior grau e atribuir cor a este vertice
+                         2   Enquanto tiver vertice sem cor:
+                         2.1 - Escolher para colorir o vértice que, no momento,
+                         -     for adjacente do maior número de
+                         -     cores diferentes (grau de saturação)
+                         2.2 - Repetir esta escolha até todos os vértices ficarem coloridos.
+                         * */
+
+                        function colorir(grafo) {
+                            var vertice = getVerticeMaiorGrauAdjacencia(grafo);
+                            vertice.cor = getPrimeiraCorAdmissivel(vertice, grafo);
+                            while (existeVerticeSemCor(grafo)) {
+                                vertice = getVerticeMaiorGrauSaturacao(grafo);
+                                vertice.cor = getPrimeiraCorAdmissivel(vertice, grafo);
+                            }
+                        }
+
+                        // ------------------ TESTE --------------------------
+                        
                         $scope.grafo = {
                             vertices: [
                                 {
@@ -85,93 +254,9 @@
                                 }
                             ]
                         };
-                        
-                        var vizinhos = [];
 
-                        $scope.saoVizinhos = function (verticea, verticeb, arestas) {
-                            return arestas.some(function (aresta) {
-                                return aresta.v1 === verticea.id && aresta.v2 === verticeb.id ||
-                                        aresta.v2 === verticea.id && aresta.v1 === verticeb.id;
-                            }) ? "1" : "";
-                        };
-
-                        getVerticeMaiorGrauSaturacao = function () {
-                            var vMaiorGrau = {grau: 0};
-                            $scope.grafo.vertices.forEach(function (v) {
-                                if (v.grauSaturacao > vMaiorGrau.grauSaturacao) {
-                                    vMaiorGrau = v;
-                                }
-                            });
-                            return vMaiorGrau;
-                        };
-                        
-                        calcularGrauAdjacencia = function (vertice) {
-                            return $scope.grafo.arestas.filter(function (aresta) {
-                                return aresta.v1 === vertice.id || aresta.v2 === vertice.id;
-                            }).length;
-                        };
-                        
-                        getVerticeMaiorGrauAdjacencia = function () {
-                            var vMaiorGrau = {grau: 0};
-                            $scope.grafo.vertices.forEach(function (v) {
-                                if (v.grau > vMaiorGrau.grau) {
-                                    vMaiorGrau = v;
-                                }
-                            });
-                            return vMaiorGrau;
-                        };
-
-                        calcularGrauAdjacencia = function (vertice) {
-                            return $scope.grafo.arestas.filter(function (aresta) {
-                                return aresta.v1 === vertice.id || aresta.v2 === vertice.id;
-                            }).length;
-                        };
-
-                        definirGrausAdjacencia = function () {
-                            $scope.grafo.vertices.forEach(function (vertice) {
-                                vertice.grau = calcularGrauAdjacencia(vertice);
-                            });
-                        };
-
-                        getVizinhos = function (vertice) {
-
-                        }
-
-                        definirVizinhos = function () {
-                            $scope.grafo.vertices.forEach(function (vertice) {
-                                vertice.vizinhos = getVizinhos(vertice);
-                            });
-                        };
-
-                        existeVerticeSemCor = function () {
-                            return $scope.grafo.vertices.some(function (vertice) {
-                                return !vertice.cor;
-                            });
-                        };
-
-                        /*
-                         1 - Escolher com maior grau e atribuir cor a este vertice
-                         Enquanto tiver vertice sem cor:
-                         2 - Escolher para colorir o vértice que, no momento, for adjacente do maior número de
-                         cores diferentes (grau de saturação)
-                         3 - Repetir esta escolha até todos os vértices ficarem coloridos.
-                         * */
-
-                        var cores = ["red", "blue", "yellow"];
-                        colorir = function () {
-                            var v = getVerticeMaiorGrauAdjacencia();
-                            var i = 0;
-                            while (existeVerticeSemCor() && i < 10) {
-                                getVerticeMaiorGrauSaturacao();
-                                i++;
-                            }
-                            v.cor = "blue";
-                            console.log(v);
-                        };
-
-                        definirVizinhos();
-                        definirGrausAdjacencia();
-                        colorir();
+                        preparar($scope.grafo);
+                        colorir($scope.grafo);
                     });
         </script>
     </body>
